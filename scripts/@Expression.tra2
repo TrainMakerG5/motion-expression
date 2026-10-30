@@ -1,0 +1,24 @@
+@JSエクスプレッション
+--information:このパラメーターをJavaScriptの式で計算します。
+--script:luaJIT
+--param:式ID,0
+--param:式を有効/check,1
+
+local evaluate = require("expression_track")
+local count = obj.getpoint("num")
+local index = obj.getpoint("index")
+local value = obj.getpoint(0)
+if count > 1 then
+    local section = math.max(0, math.min(math.floor(index), count - 2))
+    local ratio = math.max(0, math.min(index - section, 1))
+    value = obj.getpoint(section) + (obj.getpoint(section + 1) - obj.getpoint(section)) * ratio
+end
+
+local id, enabled = obj.getpoint("param")
+if enabled == 0 then
+    return value
+end
+
+local time = obj.getpoint("time")
+local frame = time * obj.getpoint("framerate")
+return evaluate(id, value, time, frame)

@@ -1,0 +1,24 @@
+--information:JavaScriptで座標・回転・拡大率・不透明度を操作します。
+--label:Expression
+--track@control_a:A,-10000,10000,100,0.01
+--track@control_b:B,-10000,10000,2,0.01
+--track@control_c:C,-10000,10000,0,0.01
+--text@source:JavaScript,const amplitude = controls.a;\nconst speed = controls.b;\nobj.x += Math.sin(time * speed) * amplitude;
+
+local js = obj.module("Expression")
+local ok, result = js.evaluate(source, obj.time, obj.frame, {
+    x = obj.ox, y = obj.oy, z = obj.oz,
+    rotationX = obj.rx, rotationY = obj.ry, rotation = obj.rz,
+    scaleX = obj.sx, scaleY = obj.sy, scaleZ = obj.sz,
+    opacity = obj.alpha
+}, {a = control_a, b = control_b, c = control_c})
+
+if not ok then
+    error("JS制御: " .. result)
+end
+
+-- 全項目の検証が成功したときに計算結果を反映します。
+obj.ox, obj.oy, obj.oz = result.x, result.y, result.z
+obj.rx, obj.ry, obj.rz = result.rotationX, result.rotationY, result.rotation
+obj.sx, obj.sy, obj.sz = result.scaleX, result.scaleY, result.scaleZ
+obj.alpha = result.opacity
