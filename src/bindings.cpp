@@ -23,14 +23,14 @@ std::string hex(std::string_view source) {
 
 std::string unhex(std::string_view source) {
     if (source.size() % 2 || source.size() > maximum_text * 2) {
-        throw std::runtime_error("Invalid expression data.");
+        throw std::runtime_error("式のデータが不正です。");
     }
     std::string result;
     for (size_t i = 0; i < source.size(); i += 2) {
         unsigned int value = 0;
         const auto parsed = std::from_chars(source.data() + i, source.data() + i + 2, value, 16);
         if (parsed.ec != std::errc{} || parsed.ptr != source.data() + i + 2 || value == 0) {
-            throw std::runtime_error("Invalid expression data.");
+            throw std::runtime_error("式のデータが不正です。");
         }
         result += static_cast<char>(value);
     }
@@ -46,15 +46,15 @@ bool number(std::string_view text) {
 
 int Bindings::add(Binding binding) {
     if (binding.source.size() > maximum_text || binding.original.size() > maximum_text) {
-        throw std::runtime_error("Expression is too long.");
+        throw std::runtime_error("式が長すぎます（最大 64 KiB）。");
     }
     std::lock_guard<std::mutex> lock(mutex_);
-    if (entries_.size() >= maximum_records) { throw std::runtime_error("Expression history is full."); }
+    if (entries_.size() >= maximum_records) { throw std::runtime_error("式の履歴が上限（4096件）に達しています。"); }
     size_t serialized_size = 6 + 32 + 2 * (binding.source.size() + binding.original.size());
     for (const auto& entry : entries_) {
         serialized_size += 32 + 2 * (entry.second.source.size() + entry.second.original.size());
     }
-    if (serialized_size > 16 * 1024 * 1024) { throw std::runtime_error("Expression project data is full."); }
+    if (serialized_size > 16 * 1024 * 1024) { throw std::runtime_error("プロジェクト内の式データが上限（16 MiB）に達しています。"); }
     const int id = next_id_++;
     entries_.emplace(id, std::move(binding));
     return id;
@@ -63,7 +63,7 @@ int Bindings::add(Binding binding) {
 Binding Bindings::get(int id) const {
     std::lock_guard<std::mutex> lock(mutex_);
     const auto entry = entries_.find(id);
-    if (entry == entries_.end()) { throw std::runtime_error("Expression is missing from the project."); }
+    if (entry == entries_.end()) { throw std::runtime_error("プロジェクト内のJS式が見つかりません。"); }
     return entry->second;
 }
 
@@ -114,23 +114,23 @@ bool Bindings::restore(std::string_view data) {
 
 std::string attach_track(std::string_view original, int id, bool enabled) {
     if (id <= 0 || original.empty() || original.size() > maximum_text || original.find('|') != std::string_view::npos) {
-        throw std::runtime_error("This movement mode is not supported yet.");
+        throw std::runtime_error("この移動方法にはまだ対応していません。");
     }
     std::string points(original);
     if (!number(original)) {
         const auto flag = original.rfind(',');
         if (flag == std::string_view::npos || original.substr(flag + 1) != "0") {
-            throw std::runtime_error("Acceleration, references and custom movement are not supported yet.");
+            throw std::runtime_error("加減速・時間制御・参照式を含む項目にはまだ対応していません。");
         }
         const auto mode = original.rfind(',', flag - 1);
         if (mode == std::string_view::npos || original.substr(mode + 1, flag - mode - 1) != "直線移動") {
-            throw std::runtime_error("Only stationary values and linear movement are supported yet.");
+            throw std::runtime_error("初版では固定値と直線移動のみに対応しています。");
         }
         points = std::string(original.substr(0, mode));
         std::istringstream values(points);
         std::string item;
         while (std::getline(values, item, ',')) {
-            if (!number(item)) { throw std::runtime_error("Invalid track value."); }
+            if (!number(item)) { throw std::runtime_error("トラックバーの値が不正です。"); }
         }
     }
     return points + "," + track_mode + ",0|" + std::to_string(id) + (enabled ? ",1" : ",0");
@@ -152,7 +152,7 @@ int track_binding(std::string_view raw) {
 std::string detach_track(std::string_view attached, std::string_view original) {
     const std::string marker = std::string(",") + track_mode + ",0|";
     const auto begin = attached.find(marker);
-    if (!track_binding(attached)) { throw std::runtime_error("Invalid expression track."); }
+    if (!track_binding(attached)) { throw std::runtime_error("式のトラック設定が不正です。"); }
     const auto points = attached.substr(0, begin);
     if (number(original) && points.find(',') == std::string_view::npos) { return std::string(points); }
     return std::string(points) + ",直線移動,0";

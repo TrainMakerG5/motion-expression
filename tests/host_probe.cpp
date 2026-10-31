@@ -64,7 +64,7 @@ void exercise_editor(bool invalid, const wchar_t* code, const wchar_t* item = L"
         SendMessageW(window, WM_COMMAND, IDOK, 0);
         wchar_t status[1024]{};
         GetWindowTextW(GetDlgItem(window, 105), status, 1024);
-        require(IsWindow(window) && std::wstring(status).find(L"finite number") != std::wstring::npos, "panel displays numeric errors without closing");
+        require(IsWindow(window) && std::wstring(status).find(L"有限の数値") != std::wstring::npos, "panel displays numeric errors without closing");
         SendMessageW(window, WM_COMMAND, IDCANCEL, 0);
     } else {
         SendMessageW(window, WM_COMMAND, 101, 0);

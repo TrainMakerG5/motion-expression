@@ -44,7 +44,7 @@ extern "C" __declspec(dllexport) int ExpressionEvaluateBinding(int id, double va
         if (result.ok && output) { *output = result.value; return 1; }
         exported_text = result.error;
     } catch (const std::exception& exception) { exported_text = exception.what(); }
-    catch (...) { exported_text = "Unexpected expression error."; }
+    catch (...) { exported_text = "予期しない式のエラーが発生しました。"; }
     if (error) { *error = exported_text.c_str(); }
     return 0;
 }
@@ -56,7 +56,7 @@ extern "C" __declspec(dllexport) int ExpressionEvaluateSource(const char* source
         if (result.ok && output) { *output = result.value; return 1; }
         exported_text = result.error;
     } catch (const std::exception& exception) { exported_text = exception.what(); }
-    catch (...) { exported_text = "Unexpected expression error."; }
+    catch (...) { exported_text = "予期しない式のエラーが発生しました。"; }
     if (error) { *error = exported_text.c_str(); }
     return 0;
 }
@@ -65,12 +65,12 @@ namespace {
 void evaluate(SCRIPT_MODULE_PARAM* param) {
     try {
         if (param->get_param_num() != 5) {
-            param->set_error("Expression.evaluate expects source, time, frame, object, controls.");
+            param->set_error("Expression.evaluate には source, time, frame, object, controls の5つの引数が必要です。");
             return;
         }
         const char* source = param->get_param_string(0);
         if (!source) {
-            param->set_error("JavaScript source must be a string.");
+            param->set_error("JavaScriptのコードは文字列で指定してください。");
             return;
         }
         expression::Input input;
@@ -94,7 +94,7 @@ void evaluate(SCRIPT_MODULE_PARAM* param) {
     } catch (const std::exception& exception) {
         param->set_error(exception.what());
     } catch (...) {
-        param->set_error("Unexpected error in Expression.");
+        param->set_error("Expressionで予期しないエラーが発生しました。");
     }
 }
 
@@ -104,7 +104,7 @@ SCRIPT_MODULE_FUNCTION functions[] = {
 };
 
 SCRIPT_MODULE_TABLE table = {
-    L"Expression 0.1.0 - JavaScript expressions (QuickJS-ng)", functions
+    L"Expression 0.1.1 — JavaScriptエクスプレッション (QuickJS-ng)", functions
 };
 }
 

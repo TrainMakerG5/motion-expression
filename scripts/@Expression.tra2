@@ -2,7 +2,7 @@
 --information:このパラメーターをJavaScriptの式で計算します。
 --script:luaJIT
 --param:式ID,0
---param:式を有効/check,1
+--param:式を有効にする/check,1
 
 local evaluate = require("expression_track")
 local count = obj.getpoint("num")

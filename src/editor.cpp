@@ -47,7 +47,7 @@ std::string utf8(const std::wstring& text) {
 template<typename T>
 void symbol(T& target, const char* name) {
     target = reinterpret_cast<T>(GetProcAddress(native_module, name));
-    if (!target) { throw std::runtime_error("Expression.mod2 must be updated together with the editor."); }
+    if (!target) { throw std::runtime_error("Expression.mod2 をエディターと同じバージョンに更新してください。"); }
 }
 
 struct Editor {
@@ -390,7 +390,7 @@ void update_preview() {
         double result = 0;
         const char* error = nullptr;
         saved_valid = evaluate_source(fresh.source.c_str(), fresh.value, fresh.time, fresh.frame, &result, &error) != 0;
-        if (!saved_valid) { error_text = L"保存済みの式: " + wide(error ? error : "JavaScript error"); }
+        if (!saved_valid) { error_text = L"保存済みの式: " + wide(error ? error : "JavaScriptのエラーが発生しました。"); }
     }
     NativeValue actual{&fresh};
     if (saved_valid) { edit_handle->call_read_section_param(&actual, read_native_value); }
@@ -405,7 +405,7 @@ void update_preview() {
         const bool valid = !enabled || evaluate_source(source.c_str(), fresh.value, fresh.time, fresh.frame, &draft, &error) != 0;
         text += L"\n未適用の式: " + (valid ? number_text(draft) : L"エラー");
         if (!enabled) { text += L"（式は無効）"; }
-        if (!valid) { error_text = wide(error ? error : "JavaScript error"); }
+        if (!valid) { error_text = wide(error ? error : "JavaScriptのエラーが発生しました。"); }
     }
     if (!error_text.empty()) { text += L"\n" + error_text; }
     preview_text(text);
@@ -417,7 +417,7 @@ void display(Editor next) {
     panel.current = std::move(next);
     panel.loading = true;
     panel.dirty = false;
-    const auto label = L"Layer " + std::to_wstring(panel.current.position.layer + 1) + L" / " + panel.current.effect + L" / " + panel.current.item;
+    const auto label = L"レイヤー " + std::to_wstring(panel.current.position.layer + 1) + L" / " + panel.current.effect + L" / " + panel.current.item;
     SetWindowTextW(panel.target_label, label.c_str());
     if (!same_code) { SetWindowTextW(panel.code, wide(panel.current.source).c_str()); }
     SendMessageW(panel.enabled, BM_SETCHECK, panel.current.is_enabled ? BST_CHECKED : BST_UNCHECKED, 0);
@@ -489,11 +489,11 @@ void command(int id) {
     const char* error = nullptr;
     if (id != 102 && panel.current.is_enabled && !evaluate_source(panel.current.source.c_str(), panel.current.value,
         panel.current.time, panel.current.frame, &result, &error)) {
-        status(wide(error ? error : "JavaScript error"));
+        status(wide(error ? error : "JavaScriptのエラーが発生しました。"));
         return;
     }
     if (id == 101) {
-        status(panel.current.is_enabled ? L"現在時刻の計算結果: " + std::to_wstring(result) : L"式は無効です。元の値を使用します。");
+        status(panel.current.is_enabled ? L"現在時刻の計算結果: " + number_text(result) : L"式は無効です。元の値を使用します。");
         return;
     }
     panel.current.error.clear();
@@ -561,7 +561,7 @@ LRESULT CALLBACK editor_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpar
 void create_panel(HOST_APP_TABLE* host) {
     panel.window = CreateWindowExW(WS_EX_CONTROLPARENT, L"ExpressionEditor", L"JSエクスプレッション",
         WS_POPUP | WS_CLIPCHILDREN, 0, 0, 720, 480, nullptr, nullptr, plugin_instance, nullptr);
-    if (!panel.window) { throw std::runtime_error("Could not create the expression panel."); }
+    if (!panel.window) { throw std::runtime_error("式編集パネルを作成できませんでした。"); }
     panel.target_label = control(panel.window, L"STATIC", L"タイムラインでオブジェクトを選択してください", 0, 0, 0, 0, 0, 107);
     panel.targets = control(panel.window, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, 0, 0, 0, 0, 106);
     panel.enabled = control(panel.window, L"BUTTON", L"式を有効にする", BS_AUTOCHECKBOX | WS_TABSTOP, 0, 0, 0, 0, 103);
@@ -575,7 +575,7 @@ void create_panel(HOST_APP_TABLE* host) {
     SendMessageW(panel.code, WM_SETFONT, reinterpret_cast<WPARAM>(panel.code_font), TRUE);
     panel.status = control(panel.window, L"STATIC", L"数値項目の右クリックからも、このパネルへ移動できます。", 0, 0, 0, 0, 0, 105);
     panel.buttons[0] = control(panel.window, L"BUTTON", L"計算を確認", WS_TABSTOP, 0, 0, 0, 0, 101);
-    panel.buttons[1] = control(panel.window, L"BUTTON", L"元設定に戻す", WS_TABSTOP, 0, 0, 0, 0, 102);
+    panel.buttons[1] = control(panel.window, L"BUTTON", L"元の設定に戻す", WS_TABSTOP, 0, 0, 0, 0, 102);
     panel.buttons[2] = control(panel.window, L"BUTTON", L"適用", BS_DEFPUSHBUTTON | WS_TABSTOP, 0, 0, 0, 0, IDOK);
     panel.buttons[3] = control(panel.window, L"BUTTON", L"変更を破棄", WS_TABSTOP, 0, 0, 0, 0, IDCANCEL);
     set_editable(false);
@@ -642,7 +642,7 @@ extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host) {
         GetModuleFileNameW(plugin_instance, filename, 32768);
         auto data = std::filesystem::path(filename).parent_path().parent_path().parent_path();
         native_module = LoadLibraryW((data / L"Script" / L"Expression" / L"Expression.mod2").c_str());
-        if (!native_module) { throw std::runtime_error("Expression.mod2 could not be loaded."); }
+        if (!native_module) { throw std::runtime_error("Expression.mod2 を読み込めませんでした。"); }
         symbol(evaluate_source, "ExpressionEvaluateSource");
         symbol(add_binding, "ExpressionAddBinding");
         symbol(binding_source, "ExpressionBindingSource");
@@ -658,13 +658,13 @@ extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host) {
         window_class.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_BTNFACE + 1);
         window_class.lpszClassName = L"ExpressionEditor";
         RegisterClassW(&window_class);
-        host->set_plugin_information(L"Expression Editor 0.1.0 — JavaScript式編集パネル");
+        host->set_plugin_information(L"Expression Editor 0.1.1 — JavaScript式編集パネル");
         host->register_object_item_menu_param(L"JSエクスプレッションを編集", false, nullptr, open_editor);
         host->register_project_load_handler(load_project);
         host->register_project_save_handler(save_project);
         create_panel(host);
     } catch (const std::exception& exception) {
-        MessageBoxW(nullptr, wide(exception.what()).c_str(), L"Expression Editor", MB_OK | MB_ICONERROR);
+        MessageBoxW(nullptr, wide(exception.what()).c_str(), L"JSエクスプレッション", MB_OK | MB_ICONERROR);
     }
 }
 

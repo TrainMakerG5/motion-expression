@@ -26,7 +26,7 @@ std::string exception_message(JSContext* context) {
     Value exception(context, JS_GetException(context));
     const char* message = JS_ToCString(context, exception.value);
     if (!message) {
-        return "JavaScript failed (execution limit or memory limit).";
+        return "JavaScriptの実行に失敗しました（実行時間またはメモリの上限を超えました）。";
     }
     std::string result(message);
     JS_FreeCString(context, message);
@@ -38,12 +38,12 @@ Result evaluate(std::string_view source, const Input& input) {
     Result result;
     result.values = input.values;
     if (source.size() > 64 * 1024) {
-        result.error = "JavaScript source exceeds 64 KiB.";
+        result.error = "JavaScriptのコードが 64 KiB を超えています。";
         return result;
     }
     auto runtime = std::unique_ptr<JSRuntime, decltype(&JS_FreeRuntime)>(JS_NewRuntime(), JS_FreeRuntime);
     if (!runtime) {
-        result.error = "Could not create JavaScript runtime.";
+        result.error = "JavaScriptランタイムを作成できませんでした。";
         return result;
     }
     JS_SetMemoryLimit(runtime.get(), 16 * 1024 * 1024);
@@ -52,7 +52,7 @@ Result evaluate(std::string_view source, const Input& input) {
     JS_SetInterruptHandler(runtime.get(), interrupt, &deadline);
     auto context = std::unique_ptr<JSContext, decltype(&JS_FreeContext)>(JS_NewContext(runtime.get()), JS_FreeContext);
     if (!context) {
-        result.error = "Could not create JavaScript context.";
+        result.error = "JavaScriptコンテキストを作成できませんでした。";
         return result;
     }
     auto* ctx = context.get();
@@ -100,12 +100,12 @@ Result evaluate(std::string_view source, const Input& input) {
             return result;
         }
         if (!JS_IsNumber(value.value) || JS_ToFloat64(ctx, &values[i], value.value) < 0 || !std::isfinite(values[i])) {
-            result.error = std::string("obj.") + property_names[i] + " must be a finite number.";
+            result.error = std::string("obj.") + property_names[i] + " には有限の数値を指定してください。";
             return result;
         }
     }
     if (values[9] < 0 || values[9] > 1) {
-        result.error = "obj.opacity must be between 0 and 1.";
+        result.error = "obj.opacity には 0 から 1 の範囲の数値を指定してください。";
         return result;
     }
     result.values = values;
@@ -116,12 +116,12 @@ Result evaluate(std::string_view source, const Input& input) {
 ScalarResult evaluate_scalar(std::string_view source, double value, double time, double frame) {
     ScalarResult result{false, value, {}};
     if (source.size() > 64 * 1024) {
-        result.error = "JavaScript source exceeds 64 KiB.";
+        result.error = "JavaScriptのコードが 64 KiB を超えています。";
         return result;
     }
     auto runtime = std::unique_ptr<JSRuntime, decltype(&JS_FreeRuntime)>(JS_NewRuntime(), JS_FreeRuntime);
     if (!runtime) {
-        result.error = "Could not create JavaScript runtime.";
+        result.error = "JavaScriptランタイムを作成できませんでした。";
         return result;
     }
     JS_SetMemoryLimit(runtime.get(), 16 * 1024 * 1024);
@@ -130,7 +130,7 @@ ScalarResult evaluate_scalar(std::string_view source, double value, double time,
     JS_SetInterruptHandler(runtime.get(), interrupt, &deadline);
     auto context = std::unique_ptr<JSContext, decltype(&JS_FreeContext)>(JS_NewContext(runtime.get()), JS_FreeContext);
     if (!context) {
-        result.error = "Could not create JavaScript context.";
+        result.error = "JavaScriptコンテキストを作成できませんでした。";
         return result;
     }
     auto* ctx = context.get();
@@ -139,7 +139,7 @@ ScalarResult evaluate_scalar(std::string_view source, double value, double time,
     const double values[] = {value, time, frame};
     for (size_t i = 0; i < 3; ++i) {
         if (!std::isfinite(values[i])) {
-            result.error = std::string(names[i]) + " must be a finite number.";
+            result.error = std::string(names[i]) + " には有限の数値を指定してください。";
             return result;
         }
         if (JS_DefinePropertyValueStr(ctx, global.value, names[i], JS_NewFloat64(ctx, values[i]), JS_PROP_ENUMERABLE) < 0) {
@@ -155,7 +155,7 @@ ScalarResult evaluate_scalar(std::string_view source, double value, double time,
     }
     double calculated = value;
     if (!JS_IsNumber(returned.value) || JS_ToFloat64(ctx, &calculated, returned.value) < 0 || !std::isfinite(calculated)) {
-        result.error = "The last expression must produce a finite number.";
+        result.error = "最後の式は有限の数値になる必要があります。";
         return result;
     }
     result.ok = true;

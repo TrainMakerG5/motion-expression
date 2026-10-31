@@ -21,7 +21,7 @@
 - [Unicodeデータの原文通知](https://github.com/quickjs-ng/quickjs/blob/v0.17.0/libunicode-table.h)
 - [個別の著作権表示があるquickjs.c](https://github.com/quickjs-ng/quickjs/blob/v0.17.0/quickjs.c)
 - [Marcin Kolny氏の通知があるquickjs-c-atomics.h](https://github.com/quickjs-ng/quickjs/blob/v0.17.0/quickjs-c-atomics.h)
-- [AviUtl2公式SDK配布元](https://spring-fragrance.mints.ne.jp/aviutl/) の取得済みSDK内 `license.txt`。対象アーカイブのSHA256は `7A8733D9611FE26FE42671CD9FCD93CA07A77D5A412441DCFDABA017401B9499` です。
+- [AviUtl2公式SDK配布元](https://spring-fragrance.mints.ne.jp/aviutl/) の取得済みSDK内 `license.txt`。対象アーカイブのSHA-256は `7A8733D9611FE26FE42671CD9FCD93CA07A77D5A412441DCFDABA017401B9499` です。
 - 本リポジトリの `CMakeLists.txt`、`scripts/bootstrap.ps1` と取得済みQuickJS-ngの `CMakeLists.txt`。
 
 ## 今回確認した不足と修正
@@ -31,7 +31,7 @@
 次のファイルをCMakeのインストール対象に追加しました。
 
 - `LICENSE`: 自作部分のMIT Licenseです。
-- `Script/Expression/licenses/QuickJS-ng-NOTICES.txt`: QuickJS-ngの4つのライブラリソースと、その引用形式のincludeを再帰的にたどった18ファイルに含まれる許諾ブロックを、原文のまま収録しています。同一ブロックはまとめています。条件付きinclude先も対象にしています。
+- `Script/Expression/licenses/QuickJS-ng-NOTICES.txt`: QuickJS-ngの4つのライブラリソースと、その引用符形式の `#include`（`#include "..."`）を再帰的にたどった18ファイルに含まれる許諾ブロックを、原文のまま収録しています。同一ブロックはまとめています。条件付きinclude先も対象にしています。
 
 既存の `QuickJS-ng.txt` と `AviUtl2-SDK.txt` も引き続き配布します。この確認記録は開発用としてリポジトリ内にのみ保持し、配布物には含めません。QuickJS-ngを更新した際は、ルートLICENSEだけでなく追加通知も見直してください。
 
@@ -43,7 +43,7 @@ Lua・LuaJITのMITライセンスは取得済み本体の `credits.txt` で確�
 
 ## Windowsと開発ツール
 
-Win32 APIとC++標準ライブラリも使用します。現在のCMake設定はMSVCの静的ランタイムを選択しています。Microsoft製ランタイムの配布条件は、プロジェクトのMITではなく利用しているVisual Studioのライセンス条項に従います。
+Win32 APIとC++標準ライブラリも使用します。現在のCMake設定はMSVCの静的ランタイムを選択しています。Microsoft製ランタイムの配布条件は、プロジェクトのMIT Licenseではなく利用しているVisual Studioのライセンス条項に従います。
 
 [Microsoft公式の再配布説明](https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files)を確認しました。ただし、インストール済みVisual Studio 2026の条項全体と適用資格までは、この確認では評価していません。この点を含め、成果物全体がMITだけで構成されるという意味ではありません。
 
