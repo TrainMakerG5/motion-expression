@@ -149,11 +149,11 @@ void inspect(void* opaque, EDIT_SECTION* edit) {
         editor.original = expression::detach_track(editor.raw, original);
         editor.is_enabled = editor.raw.back() == '1';
     } else if (track.mode && std::wstring(track.mode) != L"直線移動") {
-        editor.error = "初版では固定値と直線移動に対応しています。他の移動方法からの変更には未対応です。";
+        editor.error = "固定値と直線移動に対応しています。他の移動方法からの変更には対応していません。";
         return;
     }
     try { expression::attach_track(editor.original, 1); }
-    catch (...) { editor.error = "加減速・時間制御・参照式を含む項目にはまだ対応していません。"; return; }
+    catch (...) { editor.error = "加減速・時間制御・参照式を含む項目には対応していません。"; return; }
     editor.position = edit->get_object_layer_frame(editor.object);
     editor.object_id = edit->get_object_id(editor.object);
     editor.scene_id = editor.info.scene_id;

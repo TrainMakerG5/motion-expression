@@ -114,17 +114,17 @@ bool Bindings::restore(std::string_view data) {
 
 std::string attach_track(std::string_view original, int id, bool enabled) {
     if (id <= 0 || original.empty() || original.size() > maximum_text || original.find('|') != std::string_view::npos) {
-        throw std::runtime_error("この移動方法にはまだ対応していません。");
+        throw std::runtime_error("この移動方法には対応していません。");
     }
     std::string points(original);
     if (!number(original)) {
         const auto flag = original.rfind(',');
         if (flag == std::string_view::npos || original.substr(flag + 1) != "0") {
-            throw std::runtime_error("加減速・時間制御・参照式を含む項目にはまだ対応していません。");
+            throw std::runtime_error("加減速・時間制御・参照式を含む項目には対応していません。");
         }
         const auto mode = original.rfind(',', flag - 1);
         if (mode == std::string_view::npos || original.substr(mode + 1, flag - mode - 1) != "直線移動") {
-            throw std::runtime_error("初版では固定値と直線移動のみに対応しています。");
+            throw std::runtime_error("固定値と直線移動のみに対応しています。");
         }
         points = std::string(original.substr(0, mode));
         std::istringstream values(points);
