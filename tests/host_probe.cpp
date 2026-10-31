@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <array>
+#include <atomic>
 #include <stdexcept>
 #include <string>
 
@@ -242,6 +244,68 @@ void check_loaded(EDIT_SECTION* edit) {
     catch (const std::exception& exception) { failure = exception.what(); }
 }
 
+struct RenderSample {
+    std::atomic<bool> ready{false};
+    uint64_t red = 0, green = 0, blue = 0;
+    int lit = 0;
+};
+
+void collect_render(void* opaque, int, const void* buffer, int width, int height, int pitch) {
+    auto& sample = *static_cast<RenderSample*>(opaque);
+    if (buffer) {
+        for (int y = 0; y < height; ++y) {
+            const auto* row = static_cast<const unsigned char*>(buffer) + y * pitch;
+            for (int x = 0; x < width; ++x) {
+                sample.red += row[x * 4];
+                sample.green += row[x * 4 + 1];
+                sample.blue += row[x * 4 + 2];
+                if (row[x * 4] || row[x * 4 + 1] || row[x * 4 + 2]) { ++sample.lit; }
+            }
+        }
+    }
+    sample.ready = true;
+}
+
+void create_extended_demo(EDIT_SECTION* edit) {
+    try {
+        auto text = edit->create_object(L"JSテキスト", 0, 120, 90);
+        require(text != nullptr, "JS text object registers with the host");
+        require(edit->set_object_item_value(text, L"JSテキスト", L"JavaScript",
+            "obj.text = frame < 15 ? 'AAAA' : 'BBBBBBBB'; obj.color = frame < 15 ? 0xff0000 : 0x00ff00; obj.visible = frame < 30;"),
+            "JS text, color and visibility code attaches");
+        auto effect = edit->create_object_from_alias(
+            "[Object]\n[Object.0]\neffect.name=図形\n図形の種類=四角形\nサイズ=100\n色=ffffff\n"
+            "[Object.1]\neffect.name=JS制御\nJavaScript=if (frame < 30) obj.effect('単色化', {'色': frame < 15 ? 'ff0000' : '00ff00', '輝度を保持する': false}); obj.visible = frame < 30;\n"
+            "[Object.2]\neffect.name=標準描画\n", 0, 240, 90);
+        require(effect != nullptr, "JS effect demo object creates");
+    } catch (const std::exception& exception) { failure = exception.what(); }
+}
+
+void check_extended_rendering() {
+    const bool created = host->call_edit_section(create_extended_demo);
+    require(created && failure.empty(), failure.empty() ? "extended demos create" : failure.c_str());
+    std::array<RenderSample, 6> samples;
+    const int frames[] = {120, 135, 150, 240, 255, 270};
+    bool queued = true;
+    for (size_t i = 0; i < samples.size(); ++i) {
+        queued = host->rendering_scene_video(frames[i], &samples[i], collect_render) && queued;
+    }
+    host->wait_rendering_task();
+    require(queued, "extended demo frames queue for rendering");
+    for (size_t i = 0; i < samples.size(); ++i) {
+        require(samples[i].ready, "host returns an extended demo frame");
+        report << "render " << i << ": " << samples[i].red << ',' << samples[i].green << ',' << samples[i].blue
+            << " lit=" << samples[i].lit << std::endl;
+    }
+    require(samples[0].red > 0 && samples[0].green == 0 && samples[0].blue == 0, "JS text renders red at its first frame");
+    require(samples[1].green > 0 && samples[1].red == 0 && samples[1].blue == 0 && samples[1].lit > samples[0].lit,
+        "JS text changes both its string and color at a later frame");
+    require(samples[2].lit == 0, "JS text visibility hides its rendered output");
+    require(samples[3].red > 0 && samples[3].green == 0 && samples[3].blue == 0, "queued effect applies red to the actual image");
+    require(samples[4].green > 0 && samples[4].red == 0 && samples[4].blue == 0, "queued effect color changes over time");
+    require(samples[5].lit == 0, "JS control visibility hides its rendered output");
+}
+
 LRESULT CALLBACK probe_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
     if (message == WM_TIMER) {
         KillTimer(hwnd, 1);
@@ -270,6 +334,9 @@ LRESULT CALLBACK probe_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             require(host->open_project_file(project.c_str(), false), "demo project reopens");
             require(host->call_edit_section(check_loaded), "restored project evaluates");
             require(failure.empty(), failure.empty() ? "restored checks pass" : failure.c_str());
+            check_extended_rendering();
+            auto extended_project = output.parent_path() / L"Expression-extended-demo.aup2";
+            require(host->save_project_file(extended_project.c_str()), "extended demo project saves");
             report << "PASS" << std::endl;
         } catch (const std::exception& exception) {
             report << "FAIL " << exception.what() << std::endl;

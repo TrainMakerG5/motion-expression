@@ -4,6 +4,7 @@
 #include "bindings.h"
 
 #include <exception>
+#include <cmath>
 
 namespace {
 expression::Bindings bindings;
@@ -64,8 +65,9 @@ extern "C" __declspec(dllexport) int ExpressionEvaluateSource(const char* source
 namespace {
 void evaluate(SCRIPT_MODULE_PARAM* param) {
     try {
-        if (param->get_param_num() != 5) {
-            param->set_error("Expression.evaluate には source, time, frame, object, controls の5つの引数が必要です。");
+        const int count = param->get_param_num();
+        if (count != 5 && count != 6) {
+            param->set_error("Expression.evaluate には source, time, frame, object, controls と、省略可能な表示設定を指定してください。");
             return;
         }
         const char* source = param->get_param_string(0);
@@ -83,11 +85,28 @@ void evaluate(SCRIPT_MODULE_PARAM* param) {
         for (size_t i = 0; i < input.controls.size(); ++i) {
             input.controls[i] = param->get_param_table_double(4, names[i]);
         }
+        if (count == 6) {
+            const char* text = param->get_param_table_string(5, "text");
+            input.text = text ? text : "";
+            const double color = param->get_param_table_double(5, "color");
+            if (!std::isfinite(color) || color < 0 || color > 0xffffff || std::floor(color) != color) {
+                param->set_error("文字色には0x000000から0xffffffの整数を指定してください。");
+                return;
+            }
+            input.color = static_cast<int>(color);
+            input.visible = param->get_param_table_boolean(5, "visible");
+        }
         auto result = expression::evaluate(source, input);
         param->push_result_boolean(result.ok);
         if (result.ok) {
             auto keys = expression::property_names;
             param->push_result_table_double(keys.data(), result.values.data(), static_cast<int>(keys.size()));
+            param->push_result_string(result.text.c_str());
+            param->push_result_int(result.color);
+            param->push_result_boolean(result.visible);
+            std::vector<const char*> effects;
+            for (const auto& value : result.effects) { effects.push_back(value.c_str()); }
+            param->push_result_array_string(effects.data(), static_cast<int>(effects.size()));
         } else {
             param->push_result_string(result.error.c_str());
         }
@@ -104,7 +123,7 @@ SCRIPT_MODULE_FUNCTION functions[] = {
 };
 
 SCRIPT_MODULE_TABLE table = {
-    L"Expression 0.1.1 — JavaScriptエクスプレッション (QuickJS-ng)", functions
+    L"Expression 0.2.0 — JavaScriptエクスプレッション (QuickJS-ng)", functions
 };
 }
 

@@ -658,7 +658,7 @@ extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host) {
         window_class.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_BTNFACE + 1);
         window_class.lpszClassName = L"ExpressionEditor";
         RegisterClassW(&window_class);
-        host->set_plugin_information(L"Expression Editor 0.1.1 — JavaScript式編集パネル");
+        host->set_plugin_information(L"Expression Editor 0.2.0 — JavaScript式編集パネル");
         host->register_object_item_menu_param(L"JSエクスプレッションを編集", false, nullptr, open_editor);
         host->register_project_load_handler(load_project);
         host->register_project_save_handler(save_project);

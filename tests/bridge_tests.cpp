@@ -37,6 +37,7 @@ struct Lua {
     void (*settop)(lua_State*, int);
     const char* (*tolstring)(lua_State*, int, size_t*);
     double (*tonumber)(lua_State*, int);
+    int (*toboolean)(lua_State*, int);
     void (*getfield)(lua_State*, int, const char*);
     void (*setfield)(lua_State*, int, const char*);
     void (*pushnumber)(lua_State*, double);
@@ -44,6 +45,7 @@ struct Lua {
     void (*pushstring)(lua_State*, const char*);
     void (*pushcclosure)(lua_State*, LuaFunction, int);
     void (*createtable)(lua_State*, int, int);
+    void (*rawseti)(lua_State*, int, int);
 };
 
 Lua lua{};
@@ -60,6 +62,30 @@ double param_table_double(int index, const char* key) {
     double value = lua.tonumber(state, -1);
     lua.settop(state, -2);
     return value;
+}
+const char* param_table_string(int index, const char* key) {
+    lua.getfield(state, index + 1, key);
+    const char* value = lua.tolstring(state, -1, nullptr);
+    lua.settop(state, -2);
+    return value;
+}
+bool param_table_boolean(int index, const char* key) {
+    lua.getfield(state, index + 1, key);
+    const bool value = lua.toboolean(state, -1) != 0;
+    lua.settop(state, -2);
+    return value;
+}
+void result_int(int value) {
+    lua.pushnumber(state, value);
+    ++return_count;
+}
+void result_array(const char** values, int count) {
+    lua.createtable(state, count, 0);
+    for (int i = 0; i < count; ++i) {
+        lua.pushstring(state, values[i]);
+        lua.rawseti(state, -2, i + 1);
+    }
+    ++return_count;
 }
 void result_boolean(bool value) {
     lua.pushboolean(state, value);
@@ -87,9 +113,13 @@ int evaluate(lua_State*) {
     param.get_param_string = param_string;
     param.get_param_double = param_double;
     param.get_param_table_double = param_table_double;
+    param.get_param_table_string = param_table_string;
+    param.get_param_table_boolean = param_table_boolean;
     param.push_result_boolean = result_boolean;
     param.push_result_string = result_string;
     param.push_result_table_double = result_table;
+    param.push_result_int = result_int;
+    param.push_result_array_string = result_array;
     param.set_error = set_error;
     module_table->functions[0].func(&param);
     require(host_error.empty(), host_error.c_str());
@@ -125,6 +155,7 @@ int wmain(int argc, wchar_t** argv) {
     lua.settop = load<decltype(lua.settop)>(lua_module, "lua_settop");
     lua.tolstring = load<decltype(lua.tolstring)>(lua_module, "lua_tolstring");
     lua.tonumber = load<decltype(lua.tonumber)>(lua_module, "lua_tonumber");
+    lua.toboolean = load<decltype(lua.toboolean)>(lua_module, "lua_toboolean");
     lua.getfield = load<decltype(lua.getfield)>(lua_module, "lua_getfield");
     lua.setfield = load<decltype(lua.setfield)>(lua_module, "lua_setfield");
     lua.pushnumber = load<decltype(lua.pushnumber)>(lua_module, "lua_pushnumber");
@@ -132,6 +163,7 @@ int wmain(int argc, wchar_t** argv) {
     lua.pushstring = load<decltype(lua.pushstring)>(lua_module, "lua_pushstring");
     lua.pushcclosure = load<decltype(lua.pushcclosure)>(lua_module, "lua_pushcclosure");
     lua.createtable = load<decltype(lua.createtable)>(lua_module, "lua_createtable");
+    lua.rawseti = load<decltype(lua.rawseti)>(lua_module, "lua_rawseti");
 
     HMODULE expression_module = LoadLibraryW(argv[2]);
     require(expression_module != nullptr, "Expression.mod2 loads");
@@ -142,6 +174,8 @@ int wmain(int argc, wchar_t** argv) {
     lua.openlibs(state);
     lua.pushcclosure(state, evaluate, 0);
     lua.setfield(state, globals, "__evaluate");
+    const auto folder = std::filesystem::path(argv[3]).parent_path();
+    run("package.path = [==[" + folder.u8string() + "/?.lua;]==] .. package.path");
 
     std::ifstream file(std::filesystem::path(argv[3]), std::ios::binary);
     require(file.good(), "effect script is readable");
@@ -169,6 +203,54 @@ assert(obj.sx == 2 and obj.sy == 3 and obj.sz == 4 and obj.alpha == 0.4)
         "local success, message = pcall(function()\n" + effect + "\nend)\n"
         "assert(not success and string.find(message, 'JS制御', 1, true)); assert(obj.ox == 20)");
 
+    run(setup + R"(
+local calls = {}
+obj.effect = function(...) calls[#calls + 1] = {...} end
+source = [[
+obj.visible = false;
+obj.effect('単色化', {'色': 'ff8800', '輝度を保持する': true});
+if (time > 0) obj.effect('ぼかし', {'範囲': frame * 2});
+]]
+)" + effect + R"(
+assert(obj.alpha == 0 and #calls == 2)
+assert(calls[1][1] == '単色化' and calls[1][2] == '色' and calls[1][3] == 'ff8800')
+assert(calls[1][4] == '輝度を保持する' and calls[1][5] == 1)
+assert(calls[2][1] == 'ぼかし' and calls[2][3] == 30)
+)");
+    run(setup + R"(
+obj.effect = function() error('invalid code must not execute effects') end
+source = [[obj.effect('ぼかし', {範囲: 20}); obj.visible = 0;]]
+)" + "local success = pcall(function()\n" + effect + "\nend); assert(not success and obj.ox == 20)");
+
+    std::ifstream text_file(folder / L"JSテキスト.obj2", std::ios::binary);
+    require(text_file.good(), "JS text object script is readable");
+    const std::string text_effect{std::istreambuf_iterator<char>(text_file), std::istreambuf_iterator<char>()};
+    const std::string text_setup = setup + R"(
+base_text, text_color, text_visible = '元の文字列', 0x123456, true
+font_name, font_size = 'MS UI Gothic', 64
+local rendered, colored, calls
+calls = {}
+obj.setfont = function(name, size, decoration, color)
+    assert(name == font_name and size == font_size and decoration == 0)
+    colored = color
+end
+obj.load = function(kind, text) assert(kind == 'text'); rendered = text end
+obj.effect = function(...) calls[#calls + 1] = {...} end
+)";
+    run(text_setup + R"(
+source = [[obj.text += '\n残り' + String(controls.a - frame); obj.color = 0xff8800;
+obj.visible = frame < 30; obj.x += 4; obj.effect('ぼかし', {範囲: 2});]]
+)" + text_effect + R"(
+assert(rendered == '元の文字列\n残り85' and colored == 0xff8800)
+assert(obj.ox == 24 and obj.alpha == 1 and #calls == 1)
+)");
+    run(text_setup + "source = [[obj.visible = false;]]\n" + text_effect +
+        "\nassert(rendered == base_text and colored == text_color and obj.alpha == 0)");
+    run(text_setup + "text_visible = false; source = [[]]\n" + text_effect +
+        "\nassert(rendered == base_text and obj.alpha == 0)");
+    run(text_setup + "source = [[obj.text = 123;]]\nlocal success = pcall(function()\n" + text_effect +
+        "\nend); assert(not success and rendered == nil and colored == nil and #calls == 0)");
+
     if (std::wstring(argv[1]).find(L"luaJIT") != std::wstring::npos) {
         auto add = load<int (*)(const char*, const char*)>(expression_module, "ExpressionAddBinding");
         auto export_data = load<const char* (*)()>(expression_module, "ExpressionExportBindings");
@@ -177,7 +259,6 @@ assert(obj.sx == 2 and obj.sy == 3 and obj.sz == 4 and obj.alpha == 0.4)
         require(id > 0, "native binding is created");
         std::string saved = export_data();
         require(import_data("EXPR2;") == 1 && import_data(saved.c_str()) == 1, "native binding survives project serialization");
-        const auto folder = std::filesystem::path(argv[3]).parent_path();
         std::ifstream track_file(folder / L"@Expression.tra2", std::ios::binary);
         require(track_file.good(), "parameter script is readable");
         std::string track{std::istreambuf_iterator<char>(track_file), std::istreambuf_iterator<char>()};

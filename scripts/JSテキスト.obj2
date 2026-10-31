@@ -1,0 +1,34 @@
+--information:JavaScriptで表示する文字列・文字色・表示状態を計算します。
+--label:Expression
+--track@control_a:A,-10000,10000,10,0.01
+--track@control_b:B,-10000,10000,1,0.01
+--track@control_c:C,-10000,10000,0,0.01
+--track@font_size:文字サイズ,1,1000,64,1
+--font@font_name:フォント,MS UI Gothic
+--color@text_color:文字色,0xffffff
+--check@text_visible:表示する,true
+--text@base_text:元の文字列,テキスト
+--text@source:JavaScript,obj.text = String(Math.ceil(controls.a - time));\nobj.visible = time < controls.a;
+
+local js = obj.module("Expression")
+local ok, result, text, color, visible, effects = js.evaluate(source, obj.time, obj.frame, {
+    x = obj.ox, y = obj.oy, z = obj.oz,
+    rotationX = obj.rx, rotationY = obj.ry, rotation = obj.rz,
+    scaleX = obj.sx, scaleY = obj.sy, scaleZ = obj.sz,
+    opacity = obj.alpha
+}, {a = control_a, b = control_b, c = control_c}, {
+    text = base_text, color = text_color, visible = text_visible
+})
+
+if not ok then
+    error("JSテキスト: " .. result)
+end
+
+-- 検証済みの文字列と色から描画用の画像を作成します。
+obj.setfont(font_name, font_size, 0, color)
+obj.load("text", text)
+obj.ox, obj.oy, obj.oz = result.x, result.y, result.z
+obj.rx, obj.ry, obj.rz = result.rotationX, result.rotationY, result.rotation
+obj.sx, obj.sy, obj.sz = result.scaleX, result.scaleY, result.scaleZ
+obj.alpha = visible and result.opacity or 0
+require("expression_effects")(effects)

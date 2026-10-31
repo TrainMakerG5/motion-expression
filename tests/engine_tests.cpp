@@ -31,6 +31,35 @@ int main() {
     require(result.values[5] == 90 && result.values[9] == 0.5, "multiple properties return");
     require(result.values[6] == 1, "unchanged properties survive");
 
+    input.text = "残り";
+    input.color = 0x123456;
+    result = expression::evaluate("obj.text += String(frame); obj.color = 0xff8800; obj.visible = false;"
+        "obj.effect('単色化', {'色': 'ff8800', '輝度を保持する': true, '強さ': 0.5});", input);
+    require(result.ok && result.text == "残り15" && result.color == 0xff8800 && !result.visible,
+        "Unicode text, RGB colors and booleans reach output");
+    require(result.effects == std::vector<std::string>{"単色化", "3", "色", "string", "ff8800",
+        "輝度を保持する", "number", "1", "強さ", "number", "0.5"}, "effect arguments retain types and order");
+    result = expression::evaluate("", input);
+    require(result.ok && result.text == input.text && result.color == input.color && result.visible
+        && result.effects.empty(), "appearance defaults survive and effect queues do not leak between frames");
+    for (const char* source : {"obj.text = 123;", "obj.text = 'a\\0b';", "obj.text = 'x'.repeat(65537);",
+        "obj.color = -1;", "obj.color = 16777216;", "obj.color = 1.5;", "obj.color = NaN;",
+        "obj.color = 'ff8800';", "obj.visible = 1;", "delete obj.visible;",
+        "obj.effect('', {});", "obj.effect('ぼかし', []);", "obj.effect('ぼかし', {範囲: Infinity});",
+        "obj.effect('ぼかし', {範囲: {value: 1}});", "obj.effect('ぼかし', {範囲: null});",
+        "obj.effect('a\\0b', {});", "obj.effect('ぼかし', {'': 1});",
+        "obj.effect('ぼかし', {get 範囲() {throw Error('getter');}});",
+        "obj.effect('ぼかし', new Proxy({}, {ownKeys() {throw Error('keys');}}));",
+        "for (let i = 0; i < 65; ++i) obj.effect('ぼかし', {});",
+        "obj.effect('ぼかし', {get 範囲() {for (let i = 0; i < 64; ++i) obj.effect('ぼかし', {}); return 1;}});",
+        "obj.effect('ぼかし', Object.fromEntries(Array.from({length: 65}, (_, i) => [String(i), 1])));",
+        "for (let i = 0; i < 5; ++i) obj.effect('影', {値: 'x'.repeat(65536)});",
+        "obj.effect('ぼかし', {範囲: 10}); obj.x = NaN;"}) {
+        result = expression::evaluate(source, input);
+        require(!result.ok && !result.error.empty() && result.effects.empty(), "invalid appearance or effect commands never publish queued effects");
+        require(result.values == input.values, "invalid commands preserve numeric properties");
+    }
+
     for (const char* source : {"const = ;", "throw new Error('example');", "obj.x = NaN;",
         "obj.x = Infinity;", "obj.x = '20';", "delete obj.x;", "obj.opacity = 2;",
         "Object.defineProperty(obj, 'x', {get() {throw Error('getter');}});"}) {

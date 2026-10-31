@@ -1,6 +1,8 @@
+param([string]$HostDirectory)
+
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$source = Join-Path $root 'tools/aviutl2'
+$source = if ($HostDirectory) { (Resolve-Path -LiteralPath $HostDirectory).Path } else { Join-Path $root 'tools/aviutl2' }
 $sandbox = Join-Path $root 'tools/parameter-test'
 $probe = Join-Path $root 'build/ninja/ExpressionProbe.aux2'
 if (-not (Test-Path -LiteralPath $probe)) { throw 'Run scripts/build.ps1 first.' }
@@ -21,52 +23,25 @@ $report = Join-Path $sandbox 'host-check.log'
 Set-Content -LiteralPath $report -Value 'Waiting for the host probe.' -Encoding utf8
 $previousOutput = $env:EXPRESSION_PROBE_OUTPUT
 $env:EXPRESSION_PROBE_OUTPUT = $report
-Add-Type -TypeDefinition @'
-using System;
-using System.Text;
-using System.Runtime.InteropServices;
-public static class ExpressionTrustWindows {
-    public delegate bool Callback(IntPtr hwnd, IntPtr parameter);
-    [DllImport("user32.dll")] public static extern bool EnumWindows(Callback callback, IntPtr parameter);
-    [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr parent, Callback callback, IntPtr parameter);
-    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint process);
-    [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hwnd, StringBuilder text, int count);
-    [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam);
+# 隔離した検証環境で、配置した自作ファイルだけを信頼済みにします。
+$trustedFiles = @(
+    'Expression\Expression.mod2', 'Expression\ExpressionEditor.aux2',
+    'Expression\ExpressionProbe.aux2', 'Expression\JS制御.anm2',
+    'Expression\JSテキスト.obj2', 'Expression\@Expression.tra2',
+    'Expression\expression_track.lua', 'Expression\expression_effects.lua'
+)
+$trustFile = Join-Path $data 'module.ini'
+$trustData = if (Test-Path -LiteralPath $trustFile) { [IO.File]::ReadAllText($trustFile) } else { '' }
+foreach ($name in $trustedFiles) {
+    $pattern = '(?ms)^\[' + [Regex]::Escape($name) + '\]\r?\n.*?(?=^\[|\z)'
+    $entry = "[$name]`r`ntrust=1`r`n"
+    if ([Regex]::IsMatch($trustData, $pattern)) {
+        $trustData = [Regex]::Replace($trustData, $pattern, [Text.RegularExpressions.MatchEvaluator]{ param($match) $entry })
+    } else {
+        $trustData += "`r`n" + $entry
+    }
 }
-'@
-
-function Confirm-BuiltPlugin {
-    param([int]$ProcessId)
-    [ExpressionTrustWindows]::EnumWindows({
-        param($window, $unused)
-        [uint32]$windowProcess = 0
-        [void][ExpressionTrustWindows]::GetWindowThreadProcessId($window, [ref]$windowProcess)
-        if ($windowProcess -ne $ProcessId) { return $true }
-        $caption = [Text.StringBuilder]::new(1024)
-        [void][ExpressionTrustWindows]::GetWindowText($window, $caption, 1024)
-        if ($caption.ToString() -ne 'スクリプト・プラグインの追加') { return $true }
-        $children = [Collections.Generic.List[object]]::new()
-        [void][ExpressionTrustWindows]::EnumChildWindows($window, {
-            param($child, $parameter)
-            $label = [Text.StringBuilder]::new(4096)
-            [void][ExpressionTrustWindows]::GetWindowText($child, $label, 4096)
-            $children.Add(@{Window = $child; Label = $label.ToString().Trim()})
-            return $true
-        }, [IntPtr]::Zero)
-        $allowedFiles = @('Expression\Expression.mod2', 'Expression\ExpressionEditor.aux2', 'Expression\ExpressionProbe.aux2', 'Expression\JS制御.anm2', 'Expression\@Expression.tra2', 'Expression\expression_track.lua')
-        $fileLabels = @($children | Where-Object { $_.Label -match '\.(mod2|aux2|anm2|tra2|lua)$' })
-        $trust = @($children | Where-Object Label -EQ 'このプラグイン・スクリプトを信頼して使用する')
-        # 検証用コピーに配置した自作ファイルだけを確認します。
-        if ($fileLabels.Count -gt 0 -and $trust.Count -eq 1) {
-            $unknown = @($fileLabels | Where-Object { $_.Label -notin $allowedFiles })
-            if ($unknown.Count -eq 0) {
-                Write-Host ('Trusting built test files: ' + (($fileLabels | ForEach-Object Label) -join ', '))
-                [void][ExpressionTrustWindows]::SendMessage($trust[0].Window, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero)
-            }
-        }
-        return $true
-    }, [IntPtr]::Zero) | Out-Null
-}
+[IO.File]::WriteAllText($trustFile, $trustData, [Text.UTF8Encoding]::new($false))
 
 $hostProcess = $null
 try {
@@ -74,7 +49,6 @@ try {
     $deadline = [DateTime]::UtcNow.AddSeconds(30)
     do {
         Start-Sleep -Milliseconds 250
-        Confirm-BuiltPlugin -ProcessId $hostProcess.Id
         $text = Get-Content -LiteralPath $report -Raw -Encoding utf8
         if ($text -match '(?m)^(PASS|FAIL)') { break }
     } while ([DateTime]::UtcNow -lt $deadline -and -not $hostProcess.HasExited)
