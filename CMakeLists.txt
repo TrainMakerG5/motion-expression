@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(Expression VERSION 0.4.0 LANGUAGES C CXX)
+project(Expression VERSION 0.1.0 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "Expression requires 64-bit Windows.")
@@ -90,4 +90,6 @@ install(TARGETS ExpressionEditor LIBRARY DESTINATION Plugin/Expression RUNTIME D
 install(FILES scripts/JS制御.anm2 scripts/@Expression.tra2 scripts/expression_track.lua DESTINATION Script/Expression)
 install(FILES "${QUICKJS_DIR}/LICENSE" DESTINATION Script/Expression/licenses RENAME QuickJS-ng.txt)
 install(FILES "${AVIUTL2_SDK_DIR}/license.txt" DESTINATION Script/Expression/licenses RENAME AviUtl2-SDK.txt)
-install(FILES README.md DESTINATION .)
+install(FILES licenses/QuickJS-ng-NOTICES.txt DESTINATION Script/Expression/licenses)
+install(FILES README.md LICENSE DESTINATION .)
+install(FILES examples/Expression-demo.aup2 DESTINATION examples)

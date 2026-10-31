@@ -3,3 +3,14 @@
 /tools/
 /third_party/
 /.vs/
+
+# ローカルの認証情報と個人設定を除外します。
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.user
+*.suo

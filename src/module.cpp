@@ -104,7 +104,7 @@ SCRIPT_MODULE_FUNCTION functions[] = {
 };
 
 SCRIPT_MODULE_TABLE table = {
-    L"Expression 0.4.0 - JavaScript expressions (QuickJS-ng)", functions
+    L"Expression 0.1.0 - JavaScript expressions (QuickJS-ng)", functions
 };
 }
 

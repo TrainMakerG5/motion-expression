@@ -11,6 +11,15 @@ AviUtl2のトラックバー項目にJavaScriptの式（エクスプレッショ
 - Visual Studio 2022以降のC++開発環境、CMake 3.24以上、Ninja
 - QuickJS-ng v0.17.0
 
+## インストール（配布ZIP）
+
+1. [Releases](https://github.com/TrainMakerG5/motion-expression/releases) から `Expression-v0.1.0-windows-x64.zip` を取得し、展開します。
+2. AviUtl2を終了し、ZIP内の `Plugin/Expression` をAviUtl2の `data/Plugin/Expression` に、`Script/Expression` を `data/Script/Expression` にコピーします。`licenses` フォルダも含めて配置してください。
+3. AviUtl2を起動し、追加したプラグイン・スクリプトの信頼確認を行います。
+4. 本体のウィンドウ一覧から「JSエクスプレッション」を開きます。付属の `examples/Expression-demo.aup2` で動作を試せます。
+
+README・LICENSEも展開先に保持してください。AviUtl2本体は同梱していません。以下は開発者向けのビルド手順です。
+
 ## ビルド
 
 作業フォルダでPowerShellを開き、以下のコマンドを実行します。
@@ -37,7 +46,7 @@ AviUtl2のトラックバー項目にJavaScriptの式（エクスプレッショ
 AviUtl2本体を終了した状態で実行し、配置後に `tools/aviutl2/aviutl2.exe` を起動してください。
 初回起動時は、追加したプラグイン・スクリプトの信頼確認ダイアログが表示されます。
 
-## 式編集パネル（0.4.0）
+## 式編集パネル（0.1.0）
 
 ### 基本的な使い方
 
@@ -176,4 +185,6 @@ AviUtl2実機を用いた自動検証は、以下のコマンドで実行でき�
 - [AviUtl2・公式SDK](https://spring-fragrance.mints.ne.jp/aviutl/)
 - [QuickJS-ng](https://github.com/quickjs-ng/quickjs/tree/v0.17.0)
 
-配布物（`dist`）には、両依存先のライセンスファイルを同梱しています。
+自作部分はMIT Licenseです。配布物（`dist`）には本プロジェクトの `LICENSE` と、QuickJS-ng・AviUtl2 SDKのライセンス、QuickJS-ng内部のUnicodeデータ等の追加通知を同梱しています。
+依存先にはそれぞれのライセンスが適用されます。検証用のAviUtl2本体・Lua・LuaJITは配布物に含めません。
+開発用の確認結果と出典は、[リポジトリ内のライセンス確認記録](docs/dependency-licenses.md) に記載しています（配布ZIPでは、GitHub上の同じバージョンのREADMEから参照してください）。
